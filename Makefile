@@ -87,7 +87,10 @@ show: ## Show hosted agent status, version and identity
 	$(AZD) ai agent show $(AGENT) $(QUIET)
 
 playground: ## Open the Foundry playground for the agent
-	@open "https://ai.azure.com/nextgen/r/qIMXoq1vTPikIP_fcPU9LQ,rg-harness-agent,,cog-qpnzf2kvryvci,harness-demo/build/agents/$(AGENT)/build"
+	@eval "$$($(AZD) env get-values 2>/dev/null | grep -E '^(AZURE_SUBSCRIPTION_ID|AZURE_RESOURCE_GROUP|AZURE_AI_ACCOUNT_NAME|AZURE_AI_PROJECT_NAME)=')"; \
+	SUB=$$(python3 -c "import base64,uuid,sys; print(base64.urlsafe_b64encode(uuid.UUID(sys.argv[1]).bytes).rstrip(b'=').decode())" "$$AZURE_SUBSCRIPTION_ID"); \
+	URL="https://ai.azure.com/nextgen/r/$$SUB,$$AZURE_RESOURCE_GROUP,,$$AZURE_AI_ACCOUNT_NAME,$$AZURE_AI_PROJECT_NAME/build/agents/$(AGENT)/build"; \
+	echo "$$URL"; open "$$URL"
 
 all: setup infra skills deploy invoke ## Full end-to-end: provision → skills → deploy → invoke
 
