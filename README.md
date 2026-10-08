@@ -60,6 +60,8 @@ make deploy    # deploy the hosted agent (also grants its identity access)
 make invoke    # get a brief from the hosted agent
 ```
 
+`make env` generates `.env` from the azd environment. To set it up by hand, copy `.env.example` to `.env` and fill in your values. `.env` is gitignored.
+
 ## Files
 
 | Path                                             | Purpose                                                   |
