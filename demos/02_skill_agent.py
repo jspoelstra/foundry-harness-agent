@@ -36,9 +36,12 @@ async def main() -> None:
     text = await stream_turn(agent, prompt, agent.create_session())
 
     OUTPUT_DIR.mkdir(exist_ok=True)
-    # Drop anything the model said before the first heading.
+    # A model can preface a requested artifact with chatty text. Save from the
+    # first Markdown heading so the file itself remains a clean brief.
     match = re.search(r"^#", text, flags=re.MULTILINE)
     brief = text[match.start():] if match else text
+    # Citation tokens belong to the interactive response protocol, not the
+    # portable Markdown artifact that users open from output/.
     brief = re.sub(r"\s*\ue200?cite\ue202?turn\d+\w+\d+\ue201?", "", brief)
     out = OUTPUT_DIR / f"brief-{datetime.now():%Y%m%d-%H%M}.md"
     out.write_text(brief.strip() + "\n", encoding="utf-8")

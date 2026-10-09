@@ -45,12 +45,16 @@ def _zip_skill_md(skill_md: Path) -> bytes:
     with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(skill_dir.rglob("*")):
             if path.is_file() and "__pycache__" not in path.parts:
+                # Store paths relative to the skill directory so SKILL.md is at
+                # the archive root regardless of where this repo is checked out.
                 zf.write(path, path.relative_to(skill_dir).as_posix())
     return buffer.getvalue()
 
 
 async def _delete_skill_if_exists(project: AIProjectClient, name: str) -> None:
     try:
+        # The service creates immutable versions. Replacing the named skill
+        # before import makes this script repeatable after local edits.
         await project.beta.skills.delete(name)
     except ResourceNotFoundError:
         return
@@ -93,6 +97,8 @@ async def main() -> None:
             imported = await project.beta.skills.create_from_files(name, body)
             print(f"  Imported skill '{imported.name}' version {imported.version}.")
 
+        # Check the service's resulting state rather than treating a successful
+        # upload response as proof that every intended skill is available.
         print("Verifying skills via project.beta.skills.list()...")
         listed = {skill.name: skill async for skill in project.beta.skills.list()}
         for skill_md in skill_files:

@@ -22,6 +22,8 @@ from subprocess_script_runner import subprocess_script_runner
 
 LOCAL_SKILLS_DIR = Path(__file__).parent / "skills"
 
+# Resolve the date when this module is imported so the prompt stays stable for
+# an agent instance rather than changing halfway through a long conversation.
 ANALYST_INSTRUCTIONS = f"""\
 You are "Brent", an energy-markets analyst copilot for Forward Deployed Engineers
 working with oil & gas customers. Today is {date.today():%A %d %B %Y}.
@@ -41,9 +43,13 @@ def build_skills_provider(skills_dir: Path) -> SkillsProvider:
             [str(skills_dir)],
             script_runner=subprocess_script_runner,
             script_extensions=(".py",),
+            # Keep discovery shallow: each skill directory is directly beneath
+            # the root, and scanning deeper risks treating nested resources as
+            # independent skills.
             search_depth=2,
         ),
-        # Auto-approve so the demo runs unattended (CLI + hosted).
+        # The demo is intentionally unattended; production deployments should
+        # revisit these approvals if skills can be changed by untrusted authors.
         disable_load_skill_approval=True,
         disable_run_skill_script_approval=True,
         disable_read_skill_resource_approval=True,
@@ -70,7 +76,8 @@ def build_energy_agent(
         # Foundry stores conversation state server-side, so don't replay history locally.
         "history_provider": InMemoryHistoryProvider(load_messages=False),
         # Skills are the source of truth for market data; built-in web search adds
-        # citation markers and competes with the skill scripts.
+        # citation markers and competes with the skill scripts. Disabling it keeps
+        # data retrieval consistent and makes the brief auditable from tool output.
         "disable_web_search": True,
         "max_context_window_tokens": 128_000,
         "max_output_tokens": 16_000,
@@ -79,7 +86,9 @@ def build_energy_agent(
         kwargs["skills_provider"] = build_skills_provider(skills_dir)
     if hosted:
         # In the hosted container the platform owns conversation history and the
-        # filesystem is ephemeral, so keep the agent stateless.
+        # filesystem is ephemeral, so keep the agent stateless. Avoiding local
+        # persistence also prevents one hosted request from inheriting another's
+        # state through a reused container.
         kwargs.update(
             disable_file_memory=True,
             disable_mode=True,

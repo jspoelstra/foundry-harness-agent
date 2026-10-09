@@ -31,9 +31,13 @@ async def main() -> None:
     session = agent.create_session()
 
     if len(sys.argv) > 1:
+        # In one-shot mode, still create a session for the turn, but don't enter
+        # the prompt loop; this makes the demo convenient for scripts and tests.
         await stream_turn(agent, " ".join(sys.argv[1:]), session)
         return
 
+    # Reuse one session across turns so the chat demonstrates conversational
+    # context rather than starting from scratch after every prompt.
     print(f"{BOLD}🛢  Energy chat (Harness agent){RESET}  {DIM}- type 'exit' to quit{RESET}\n")
     while True:
         try:

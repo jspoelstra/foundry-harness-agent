@@ -12,7 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 AGENT_DIR = ROOT / "src" / "energy-brief-agent"
 OUTPUT_DIR = ROOT / "output"
 
+# These demos are run as standalone files, so their directory is sys.path[0].
+# Add the agent source explicitly instead of requiring an editable install.
 sys.path.insert(0, str(AGENT_DIR))
+# Read the repo-local environment file regardless of the caller's working dir.
 load_dotenv(ROOT / ".env")
 
 DIM, BOLD, CYAN, YELLOW, RESET = "\033[2m", "\033[1m", "\033[36m", "\033[33m", "\033[0m"
@@ -52,6 +55,8 @@ async def stream_turn(agent, message: str, session) -> str:
             ctype = getattr(content, "type", "")
             if ctype == "function_call":
                 call_id = getattr(content, "call_id", None) or id(content)
+                # Streaming updates may repeat a tool call as its arguments
+                # arrive; display each call once, but leave streamed text intact.
                 if call_id in seen_calls or not getattr(content, "name", None):
                     continue
                 seen_calls.add(call_id)

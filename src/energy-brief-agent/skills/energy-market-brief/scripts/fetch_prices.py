@@ -33,6 +33,8 @@ def fetch(symbol: str, period: str) -> dict:
     result = data["chart"]["result"][0]
     stamps = result.get("timestamp") or []
     closes = result["indicators"]["quote"][0].get("close") or []
+    # Yahoo's timestamps and closes are parallel arrays; filtering null closes
+    # here avoids emitting missing quotes while retaining each close's date.
     series = [
         (datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%d"), round(c, 3))
         for t, c in zip(stamps, closes)
@@ -41,6 +43,8 @@ def fetch(symbol: str, period: str) -> dict:
     if not series:
         raise ValueError("no price data")
     values = [v for _, v in series]
+    # A one-session response still has a useful "latest" value, so treat its
+    # only close as both the first and previous observation (zero change).
     last, prev, first = values[-1], values[-2] if len(values) > 1 else values[-1], values[0]
     return {
         "name": CONTRACTS[symbol],
@@ -70,6 +74,8 @@ def main() -> None:
     ho = out["contracts"].get("HO=F", {}).get("latest")
     if wti and rb and ho:
         # Classic 3-2-1 crack spread in USD/bbl (42 gal/bbl).
+        # The ratio approximates refining three barrels of crude into two
+        # barrels of gasoline and one barrel of distillate.
         out["crack_spread_321"] = round((2 * rb * 42 + ho * 42 - 3 * wti) / 3, 2)
     print(json.dumps(out, indent=1))
 

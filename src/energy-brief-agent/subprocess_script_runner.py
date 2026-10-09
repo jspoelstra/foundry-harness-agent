@@ -42,8 +42,13 @@ def subprocess_script_runner(
     script_path = Path(script.full_path)
     if not script_path.is_file():
         return f"Error: Script file not found: {script_path}"
+    # Launch in a separate process so a skill script cannot mutate the agent's
+    # Python state, and use the same interpreter/environment as the agent.
     cmd = [sys.executable, str(script_path)]
     if isinstance(args, list):
+        # FileSkill scripts receive positional strings, not arbitrary Python
+        # objects; reject bad shapes here instead of letting them fail obscurely
+        # inside a script's argument handling.
         for item in args:
             if not isinstance(item, str):
                 raise TypeError(
@@ -63,9 +68,13 @@ def subprocess_script_runner(
             capture_output=True,
             text=True,
             timeout=30,
+            # Relative paths inside a skill should resolve against that skill,
+            # not whichever directory happened to launch the agent.
             cwd=str(script_path.parent),
         )
         output = result.stdout
+        # Preserve diagnostics for the model/user while keeping stdout as the
+        # primary machine-readable result (the scripts emit JSON there).
         if result.stderr:
             output += f"\nStderr:\n{result.stderr}"
         if result.returncode != 0:

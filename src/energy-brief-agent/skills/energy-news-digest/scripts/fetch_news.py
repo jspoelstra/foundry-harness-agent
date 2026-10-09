@@ -29,6 +29,8 @@ def read_feed(url: str, limit: int) -> list[dict]:
     with urllib.request.urlopen(req, timeout=15) as resp:
         root = ET.fromstring(resp.read())
     items = []
+    # RSS publishers differ in which fields they include; keep a predictable
+    # output shape and add publisher attribution only when it is available.
     for item in root.iter("item"):
         source = item.find("source")
         items.append(
@@ -47,6 +49,8 @@ def read_feed(url: str, limit: int) -> list[dict]:
 def main() -> None:
     query = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].strip() else "oil gas OPEC LNG"
     try:
+        # Bound requests so a caller cannot accidentally ask every feed for an
+        # excessive response; invalid input uses the documented default.
         limit = max(1, min(20, int(sys.argv[2]))) if len(sys.argv) > 2 else 8
     except ValueError:
         limit = 8
@@ -57,6 +61,8 @@ def main() -> None:
         try:
             out["feeds"].append({"feed": name, "items": read_feed(url, limit)})
         except Exception as exc:  # noqa: BLE001 - report per-feed failures to the agent
+            # One unavailable publisher should not discard headlines already
+            # retrieved from independent feeds.
             out["feeds"].append({"feed": name, "error": str(exc)})
     print(json.dumps(out, indent=1))
 
