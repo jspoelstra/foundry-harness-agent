@@ -4,6 +4,8 @@ A show-and-tell demo of the [Microsoft Agent Framework Harness Agent](https://le
 
 Everything is driven by `make`. Run `make help` to see the targets.
 
+New to the Harness agent? Start with the [code walkthrough](https://jspoelstra.github.io/foundry-harness-agent/walkthrough.html) ([source](docs/walkthrough.html)).
+
 ## Run of show
 
 | # | What you show                         | Command                                     | Artifact                         |
@@ -74,6 +76,7 @@ make invoke    # get a brief from the hosted agent
 | `src/energy-brief-agent/provision_skills.py`     | Uploads or lists skills in the Foundry project            |
 | `src/energy-brief-agent/skills/`                 | The two skills (`SKILL.md` and scripts)                   |
 | `docs/BUILD_YOUR_OWN_AGENT.md`                   | Guide for coding agents adapting this repo to a new agent |
+| `docs/walkthrough.html`                          | Code walkthrough, published with GitHub Pages             |
 
 ## Caveats
 
