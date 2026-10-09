@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code Walkthrough: Energy Brief Harness Agent</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #161c24; --panel-2: #1c2430; --border: #2a3441;
+    --text: #d8dee9; --muted: #8b98a9; --accent: #4fc3f7; --accent-2: #ffb74d;
+    --good: #81c784; --bad: #e57373; --code-bg: #0b0f14;
+    --kw: #c792ea; --str: #c3e88d; --com: #6a7a8c; --num: #f78c6c; --fn: #82aaff; --dec: #ffcb6b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f7f8fa; --panel: #ffffff; --panel-2: #f0f3f7; --border: #d9dee6;
+      --text: #1f2933; --muted: #5c6b7a; --accent: #0277bd; --accent-2: #e65100;
+      --good: #2e7d32; --bad: #c62828; --code-bg: #f3f5f8;
+      --kw: #7b1fa2; --str: #2e7d32; --com: #8a96a3; --num: #d84315; --fn: #1565c0; --dec: #a65e00;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 100vh; }
+  nav { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 24px 16px;
+        border-right: 1px solid var(--border); background: var(--panel); }
+  nav .brand { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+  nav .sub { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
+  nav ol { list-style: none; padding: 0; margin: 0; counter-reset: sec; }
+  nav li { margin: 2px 0; }
+  nav a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--muted);
+          text-decoration: none; font-size: 14px; border-left: 2px solid transparent; }
+  nav a:hover { color: var(--text); background: var(--panel-2); }
+  nav a.active { color: var(--accent); border-left-color: var(--accent); background: var(--panel-2); }
+  nav .group { margin-top: 14px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+               color: var(--muted); padding: 0 10px; }
+  main { padding: 40px clamp(20px, 5vw, 64px) 120px; max-width: 1100px; }
+  h1 { font-size: 34px; line-height: 1.2; margin: 0 0 8px; }
+  h2 { font-size: 26px; margin: 64px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 19px; margin: 32px 0 8px; color: var(--accent); }
+  h4 { font-size: 16px; margin: 20px 0 6px; }
+  p, li { max-width: 78ch; }
+  a { color: var(--accent); }
+  .lede { color: var(--muted); font-size: 18px; max-width: 70ch; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em;
+         background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+  pre { position: relative; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+        padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; margin: 12px 0 20px; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  pre:has(> .file) { padding-top: 30px; }
+  pre .file { position: absolute; top: 0; right: 0; font-size: 11px; color: var(--muted);
+              background: var(--panel-2); padding: 2px 8px; border-bottom-left-radius: 6px;
+              font-family: ui-monospace, Menlo, monospace; }
+  pre button.copy { position: absolute; bottom: 6px; right: 6px; font-size: 11px; padding: 2px 8px;
+              border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+              border-radius: 4px; cursor: pointer; opacity: 0; transition: opacity .15s; }
+  pre:hover button.copy { opacity: 1; }
+  .tok-kw { color: var(--kw); } .tok-str { color: var(--str); } .tok-com { color: var(--com); font-style: italic; }
+  .tok-num { color: var(--num); } .tok-fn { color: var(--fn); } .tok-dec { color: var(--dec); }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 24px; font-size: 14.5px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--panel-2); }
+  .callout { border-left: 4px solid var(--accent); background: var(--panel); padding: 12px 16px;
+             border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .callout.warn { border-left-color: var(--accent-2); }
+  .callout.talk { border-left-color: var(--good); }
+  .callout .title { font-weight: 700; margin-bottom: 4px; font-size: 14px; text-transform: uppercase;
+                    letter-spacing: .05em; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .card h4 { margin-top: 0; }
+  .pros li::marker { content: "✔  "; color: var(--good); }
+  .cons li::marker { content: "✖  "; color: var(--bad); }
+  .diagram { font-family: ui-monospace, Menlo, monospace; white-space: pre; font-size: 13px;
+             background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+             padding: 16px; overflow-x: auto; line-height: 1.4; }
+  .stack { display: flex; flex-direction: column; gap: 6px; max-width: 640px; margin: 16px 0; }
+  .stack div { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); }
+  .stack div b { color: var(--accent); }
+  .stack .harness { border: 2px dashed var(--accent-2); }
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps > li { counter-increment: step; position: relative; padding-left: 40px; margin: 12px 0; }
+  .steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px;
+                        border-radius: 50%; background: var(--accent); color: var(--bg); font-weight: 700;
+                        display: grid; place-items: center; font-size: 14px; }
+  .badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px;
+           border: 1px solid var(--border); color: var(--muted); margin-left: 6px; vertical-align: middle; }
+  details { background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+            padding: 8px 14px; margin: 12px 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+  kbd { font-family: ui-monospace, Menlo, monospace; font-size: .85em; border: 1px solid var(--border);
+        border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--panel-2); }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    nav { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  }
+  @media print {
+    nav, button.copy { display: none; }
+    .layout { grid-template-columns: 1fr; }
+    pre { white-space: pre-wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav aria-label="Table of contents">
+  <div class="brand">🛢 Energy Brief Agent</div>
+  <div class="sub">Code walkthrough · Harness agent on Microsoft Foundry</div>
+  <ol>
+    <li class="group">Introduction</li>
+    <li><a href="#overview">Overview &amp; goals</a></li>
+    <li><a href="#harness">What is the Harness agent?</a></li>
+    <li><a href="#options">Harness vs lower-level options</a></li>
+    <li><a href="#proscons">Pros &amp; cons</a></li>
+    <li class="group">The repo</li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#repomap">Repo map</a></li>
+    <li><a href="#setup">Setup</a></li>
+    <li class="group">Part A: local agent</li>
+    <li><a href="#common">Shared demo plumbing</a></li>
+    <li><a href="#demo1">Demo 1: simple CLI</a></li>
+    <li><a href="#factory">The agent factory</a></li>
+    <li><a href="#skills">Skills</a></li>
+    <li><a href="#runner">Script runner</a></li>
+    <li><a href="#demo2">Demo 2: skill agent</a></li>
+    <li class="group">Part B: hosted agent</li>
+    <li><a href="#provision">Sharing skills in Foundry</a></li>
+    <li><a href="#mainpy">main.py: hosted entry point</a></li>
+    <li><a href="#packaging">azure.yaml, Dockerfile, RBAC</a></li>
+    <li><a href="#deploy">Deploy, invoke, verify</a></li>
+    <li class="group">Wrap-up</li>
+    <li><a href="#runofshow">Demo run-of-show</a></li>
+    <li><a href="#production">Before production</a></li>
+    <li><a href="#exercises">Exercises</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ============================================================ OVERVIEW -->
+<section id="overview">
+  <h1>Code walkthrough: the Energy Brief Harness Agent</h1>
+  <p class="lede">A guided tour of this repo for people new to the Microsoft Agent Framework <b>Harness agent</b>.
+  We build one agent, run it on a laptop, then ship the same code as a <b>Foundry Hosted Agent</b> that
+  pulls its <b>Skills</b> from the Foundry project.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>What the agent does</h4>
+      <p>"Brent" is an oil and gas market analyst. It pulls delayed futures prices (WTI, Brent, Henry Hub,
+      RBOB, heating oil) and public energy headlines, then writes a one-page Markdown <b>market brief</b>.</p>
+    </div>
+    <div class="card">
+      <h4>What you will learn</h4>
+      <ul>
+        <li>What <code>create_harness_agent</code> gives you, and when to use something lower-level</li>
+        <li>How Skills (<code>SKILL.md</code> plus scripts) load on demand</li>
+        <li>The "one factory, two entry points" pattern for local and hosted runs</li>
+        <li>How to publish skills to Foundry and deploy a hosted agent with <code>azd</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="title">Preview</div>
+    Hosted Agents, the Foundry skills API (<code>project.beta.skills</code>) and the Harness packages are
+    preview features. Names and signatures in this guide match the versions pinned in
+    <code>src/energy-brief-agent/requirements.txt</code> (for example <code>agent-framework-core 1.14</code>,
+    <code>agent-framework-foundry-hosting 1.0.0b260813</code>) and may change.
+  </div>
+</section>
+
+<!-- ============================================================ HARNESS -->
+<section id="harness">
+  <h2>What is the Harness agent?</h2>
+  <p>A model on its own answers one prompt. An <b>agent</b> wraps a model with a loop that can call tools,
+  keep conversation state and decide what to do next. A <b>harness</b> goes further: it adds the scaffolding
+  an agent needs to work through <em>long, multi-step tasks</em> without you assembling each piece.</p>
+
+  <p>In Agent Framework (Python), the harness is a single factory function:</p>
+<pre><code class="language-python">from agent_framework import create_harness_agent
+from agent_framework.foundry import FoundryChatClient
+from azure.identity import AzureCliCredential
+
+agent = create_harness_agent(
+    FoundryChatClient(project_endpoint=..., model="gpt-5.4-mini", credential=AzureCliCredential()),
+    agent_instructions="You are a helpful energy analyst.",
+)
+session = agent.create_session()
+print(await agent.run("Plan a market brief for today.", session=session))</code></pre>
+
+  <p>An important detail: <code>create_harness_agent</code> returns an ordinary <code>agent_framework.Agent</code>.
+  The harness is a <b>preconfigured Agent</b>, not a separate runtime. Anything that accepts an <code>Agent</code>
+  (hosting servers, workflows, middleware) accepts a harness agent too. That is how this repo hands the same
+  object to <code>ResponsesHostServer</code> in the hosted container.</p>
+
+  <h3>What the harness switches on by default</h3>
+  <table>
+    <tr><th>Capability</th><th>What it does</th><th>Opt-out / customize</th></tr>
+    <tr><td>Todo tracking</td><td>Gives the model a todo list tool to plan against and tick off</td><td><code>disable_todo</code>, <code>todo_provider</code></td></tr>
+    <tr><td>Agent modes</td><td>Plan mode and execute mode, so the agent can plan before acting</td><td><code>disable_mode</code>, <code>mode_provider</code></td></tr>
+    <tr><td>Compaction</td><td>Summarizes and trims history when it nears the token budget</td><td><code>max_context_window_tokens</code>, <code>disable_compaction</code></td></tr>
+    <tr><td>File memory</td><td>Session-scoped files the agent can write notes to and read back</td><td><code>disable_file_memory</code>, <code>file_memory_store</code></td></tr>
+    <tr><td>Web search</td><td>Built-in web search tool</td><td><code>disable_web_search</code></td></tr>
+    <tr><td>Tool auto-approval</td><td>Standing "don't ask again" approvals and rules</td><td><code>disable_tool_auto_approval</code>, <code>auto_approval_rules</code></td></tr>
+    <tr><td>Per-call history persistence</td><td>Saves history after every model call inside a tool loop</td><td><code>history_provider</code></td></tr>
+    <tr><td>Telemetry</td><td>OpenTelemetry spans for the agent</td><td><code>otel_provider_name</code></td></tr>
+  </table>
+  <p>Opt-in extras include <b>Skills</b> (<code>skills_provider</code> or <code>skills_paths</code>), shared file
+  access, background sub-agents, a shell executor and bounded looping (<code>loop_should_continue</code>).
+  This repo opts in to Skills and opts out of several defaults. We will see why.</p>
+</section>
+
+<!-- ============================================================ OPTIONS -->
+<section id="options">
+  <h2>Harness vs the lower-level options</h2>
+  <p>Agent Framework gives you a ladder. Each rung adds behavior on top of the one below it.</p>
+
+  <div class="stack">
+    <div><b>1. Chat client</b> · <code>FoundryChatClient(...).get_response(messages)</code><br>
+      One model call. You own the tool loop, history and prompts.</div>
+    <div><b>2. Agent</b> · <code>Agent(client, instructions, tools=..., context_providers=..., middleware=...)</code><br>
+      Tool-calling loop, sessions and streaming. You choose every provider and option.</div>
+    <div class="harness"><b>3. Harness agent</b> · <code>create_harness_agent(client, ...)</code><br>
+      An <code>Agent</code> pre-wired with todos, modes, compaction, file memory, web search, approvals and optional Skills.</div>
+    <div><b>Alternative: service-defined agent</b> · <code>FoundryAgent(project_endpoint, agent_name=...)</code><br>
+      Connects to an agent whose definition lives in Foundry (a Prompt Agent or a Hosted Agent). The service owns the definition.</div>
+  </div>
+
+  <h3>The same agent at each level</h3>
+  <p>Here is roughly what you would write to get a skills-enabled agent without the harness:</p>
+<pre><code class="language-python"># Lower level: compose an Agent yourself
+from agent_framework import Agent, SkillsProvider, FileSkillsSource
+
+agent = Agent(
+    client,
+    instructions=ANALYST_INSTRUCTIONS,
+    context_providers=[
+        SkillsProvider(FileSkillsSource(["skills"], script_runner=runner)),
+        # ...add your own todo / memory / history providers if you want them
+    ],
+    compaction_strategy=my_strategy,   # optional, you pick the strategy
+)</code></pre>
+<pre><code class="language-python"># Harness: the same, plus planning/todos/compaction/approvals, in one call
+agent = create_harness_agent(
+    client,
+    agent_instructions=ANALYST_INSTRUCTIONS,
+    skills_provider=SkillsProvider(FileSkillsSource(["skills"], script_runner=runner)),
+    max_context_window_tokens=128_000,
+)</code></pre>
+
+  <table>
+    <tr><th></th><th>Chat client</th><th>Agent</th><th>Harness agent</th><th>FoundryAgent</th></tr>
+    <tr><td>Where the definition lives</td><td>Your code</td><td>Your code</td><td>Your code</td><td>Foundry service</td></tr>
+    <tr><td>Tool-calling loop</td><td>You write it</td><td>Built in</td><td>Built in</td><td>Built in</td></tr>
+    <tr><td>Planning, todos, modes</td><td>-</td><td>Add yourself</td><td>Default on</td><td>Depends on the agent</td></tr>
+    <tr><td>Context compaction</td><td>-</td><td>Optional</td><td>On with token limits</td><td>Service-managed</td></tr>
+    <tr><td>Skills</td><td>-</td><td>Via provider</td><td>One parameter</td><td>Service tools</td></tr>
+    <tr><td>Prompt and token overhead</td><td>Lowest</td><td>What you add</td><td>Highest</td><td>Varies</td></tr>
+    <tr><td>Best for</td><td>Single completions, extraction, classification</td><td>Focused tool-using agents, tight control</td><td>Open-ended, multi-step work</td><td>Calling an agent someone already deployed</td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ PROS/CONS -->
+<section id="proscons">
+  <h2>Pros and cons of the Harness agent</h2>
+  <div class="grid2">
+    <div class="card">
+      <h4>Pros</h4>
+      <ul class="pros">
+        <li><b>Batteries included.</b> Planning, todos, compaction, memory and approvals in one call, with defaults tuned for long tasks.</li>
+        <li><b>Still a plain <code>Agent</code>.</b> Works with streaming, sessions, middleware, workflows and <code>ResponsesHostServer</code> unchanged.</li>
+        <li><b>Easy opt-outs.</b> Every default has a <code>disable_*</code> flag or a replaceable provider, so you can trim it down.</li>
+        <li><b>Skills are first-class.</b> One <code>skills_provider</code> argument gives progressive disclosure of domain know-how.</li>
+        <li><b>Model-agnostic.</b> Wraps any chat client (Foundry, Azure OpenAI, OpenAI, Anthropic and others).</li>
+        <li><b>Fast to demo.</b> Demo 1 is a working multi-turn agent in about 15 lines.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Cons</h4>
+      <ul class="cons">
+        <li><b>Preview.</b> APIs and default behavior can change between releases.</li>
+        <li><b>More implicit behavior.</b> Hidden harness instructions and extra tools make it harder to see why the model did something.</li>
+        <li><b>Higher cost and latency.</b> Extra tool schemas and instructions go out on every call. That is overkill for a one-shot classification.</li>
+        <li><b>Defaults assume a stateful, interactive host.</b> File memory and modes need turning off in a stateless container. This repo does that.</li>
+        <li><b>Built-ins can compete with your tools.</b> Web search competes with skill scripts and adds citation markers, so this repo disables it.</li>
+        <li><b>Auto-approval is a security decision.</b> Fine for read-only demos. Revisit it for tools with side effects.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout talk">
+    <div class="title">Rule of thumb</div>
+    Start with the harness when the task is open-ended or multi-step and you want results quickly. Drop to
+    <code>Agent</code> when you need precise control over prompts, tools and cost, or when the task is narrow.
+    Use <code>FoundryAgent</code> when you are <em>consuming</em> an agent that is already defined in Foundry
+    rather than building one.
+  </div>
+</section>
+
+<!-- ============================================================ ARCHITECTURE -->
+<section id="architecture">
+  <h2>Architecture</h2>
+  <p>The key design choice: <b>one agent factory, two entry points</b>. The local demos and the hosted
+  container both call <code>build_energy_agent()</code>. Only a <code>hosted=True</code> flag changes behavior,
+  so a local run is a faithful test of what you deploy.</p>
+<div class="diagram"> src/energy-brief-agent/skills/            Foundry project
+   energy-market-brief/  ── make skills ──▶  Skills store (versioned, shared)
+   energy-news-digest/                            │
+        │                                         │ download at startup (SKILL_NAMES)
+        ▼                                         ▼
+ demos/02_skill_agent.py              Hosted Agent: energy-brief-agent
+ (local Harness agent)                (main.py + ResponsesHostServer)
+        │                                         │
+        └──── build_energy_agent() ───────────────┘
+                     │
+                     ▼
+        gpt-5.4-mini (Foundry model deployment)</div>
+
+<div class="diagram">local:   demos/*.py ──▶ build_energy_agent(FoundryChatClient + AzureCliCredential, skills_dir=./skills)
+hosted:  main.py    ──▶ download SKILL_NAMES from Foundry ──▶ build_energy_agent(..., hosted=True)
+                         (fallback: skills baked into image)        └─▶ ResponsesHostServer on :8088</div>
+</section>
+
+<!-- ============================================================ REPO MAP -->
+<section id="repomap">
+  <h2>Repo map</h2>
+  <table>
+    <tr><th>Path</th><th>Role</th><th>Covered in</th></tr>
+    <tr><td><code>demos/_common.py</code></td><td>Loads <code>.env</code>, builds the chat client, streams turns and prints tool calls</td><td><a href="#common">Part A</a></td></tr>
+    <tr><td><code>demos/01_simple_cli.py</code></td><td>Minimal Harness chat REPL, no skills</td><td><a href="#demo1">Demo 1</a></td></tr>
+    <tr><td><code>src/energy-brief-agent/energy_agent.py</code></td><td>Shared agent factory: instructions, skills, hosted switches</td><td><a href="#factory">Factory</a></td></tr>
+    <tr><td><code>src/energy-brief-agent/skills/</code></td><td>Two skills: <code>energy-market-brief</code>, <code>energy-news-digest</code></td><td><a href="#skills">Skills</a></td></tr>
+    <tr><td><code>src/energy-brief-agent/subprocess_script_runner.py</code></td><td>Runs skill scripts as Python subprocesses</td><td><a href="#runner">Runner</a></td></tr>
+    <tr><td><code>demos/02_skill_agent.py</code></td><td>Runs the full agent once and saves <code>output/brief-*.md</code></td><td><a href="#demo2">Demo 2</a></td></tr>
+    <tr><td><code>src/energy-brief-agent/provision_skills.py</code></td><td>Uploads or lists skills in the Foundry project</td><td><a href="#provision">Part B</a></td></tr>
+    <tr><td><code>src/energy-brief-agent/main.py</code></td><td>Hosted entry point: credentials, skill download, server</td><td><a href="#mainpy">main.py</a></td></tr>
+    <tr><td><code>azure.yaml</code>, <code>Dockerfile</code></td><td>azd project and container image</td><td><a href="#packaging">Packaging</a></td></tr>
+    <tr><td><code>Makefile</code></td><td>Every workflow as a target (<code>make help</code>)</td><td>Throughout</td></tr>
+    <tr><td><code>docs/BUILD_YOUR_OWN_AGENT.md</code></td><td>Guide to adapting this repo to a new use case</td><td><a href="#exercises">Exercises</a></td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ SETUP -->
+<section id="setup">
+  <h2>Setup</h2>
+  <p>Prerequisites: Python 3.12+, <a href="https://docs.astral.sh/uv/">uv</a>, Azure CLI (<code>az login</code>),
+  Azure Developer CLI 1.29+ with the <code>azure.ai.agents</code> extension, and rights to create resources and
+  role assignments.</p>
+<pre><code class="language-bash">make setup     # create .venv and install pinned dependencies
+make infra     # azd provision: Foundry account, project, gpt-5.4-mini deployment (also runs make env)
+make env       # write .env with FOUNDRY_PROJECT_ENDPOINT and AZURE_AI_MODEL_DEPLOYMENT_NAME</code></pre>
+  <p>After this, <code>.env</code> holds two values. Everything in Part A needs only these and your
+  <code>az login</code> session. <code>.env</code> is gitignored and must stay out of source control.</p>
+</section>
+
+<!-- ============================================================ PART A -->
+<section id="common">
+  <h2>Part A · Shared demo plumbing <span class="badge">demos/_common.py</span></h2>
+  <p>Both demos import a small helper module. It does three jobs.</p>
+
+  <h4>1. Make the agent package importable and load config</h4>
+<pre><span class="file">demos/_common.py</span><code class="language-python">ROOT = Path(__file__).resolve().parents[1]
+AGENT_DIR = ROOT / "src" / "energy-brief-agent"
+OUTPUT_DIR = ROOT / "output"
+
+sys.path.insert(0, str(AGENT_DIR))   # so `import energy_agent` works without an install
+load_dotenv(ROOT / ".env")           # works from any working directory</code></pre>
+
+  <h4>2. Build the chat client</h4>
+<pre><span class="file">demos/_common.py</span><code class="language-python">def make_client():
+    from agent_framework.foundry import FoundryChatClient
+    from azure.identity import AzureCliCredential
+
+    missing = [k for k in ("FOUNDRY_PROJECT_ENDPOINT", "AZURE_AI_MODEL_DEPLOYMENT_NAME") if not os.getenv(k)]
+    if missing:
+        sys.exit(f"Missing {', '.join(missing)} in .env - run `make infra` first.")
+    return FoundryChatClient(
+        project_endpoint=os.environ["FOUNDRY_PROJECT_ENDPOINT"],
+        model=os.environ["AZURE_AI_MODEL_DEPLOYMENT_NAME"],
+        credential=AzureCliCredential(),
+    )</code></pre>
+  <p>Locally we authenticate with <code>AzureCliCredential</code>, so no keys are involved. The hosted
+  version swaps this for a managed identity.</p>
+
+  <h4>3. Stream a turn and show tool calls inline</h4>
+<pre><span class="file">demos/_common.py</span><code class="language-python">async def stream_turn(agent, message: str, session) -> str:
+    chunks: list[str] = []
+    seen_calls: set[str] = set()
+    async for update in agent.run(message, session=session, stream=True):
+        for content in update.contents or []:
+            ctype = getattr(content, "type", "")
+            if ctype == "function_call":
+                call_id = getattr(content, "call_id", None) or id(content)
+                if call_id in seen_calls or not getattr(content, "name", None):
+                    continue
+                seen_calls.add(call_id)
+                print(f"\n  ⚙ {_describe_call(content)}", flush=True)
+            elif ctype == "text" and content.text:
+                chunks.append(content.text)
+                print(content.text, end="", flush=True)
+    print()
+    return "".join(chunks)</code></pre>
+  <div class="callout talk">
+    <div class="title">Teaching point</div>
+    <code>agent.run(..., stream=True)</code> yields updates whose <code>contents</code> mix text and
+    <code>function_call</code> items. Printing the function calls (<code>⚙ load_skill(energy-market-brief)</code>,
+    <code>⚙ run_skill_script(energy-market-brief/fetch_prices.py)</code>) makes the agent's reasoning visible
+    on stage. Streaming can repeat a call as its arguments arrive, so the code de-duplicates by <code>call_id</code>.
+  </div>
+</section>
+
+<section id="demo1">
+  <h2>Demo 1 · The simplest Harness agent <span class="badge">demos/01_simple_cli.py</span></h2>
+  <p>A chat REPL. No skills, no custom tools: just the harness defaults and a persona.</p>
+<pre><span class="file">demos/01_simple_cli.py</span><code class="language-python">agent = create_harness_agent(
+    make_client(),
+    name="energy-chat",
+    agent_instructions=(
+        "You are a concise, friendly energy-industry assistant for oil & gas engineers. "
+        "Answer in short Markdown."
+    ),
+    max_context_window_tokens=128_000,   # turns on compaction with a budget
+    max_output_tokens=8_000,
+    disable_file_memory=True,            # keep the demo from writing files
+)
+session = agent.create_session()
+
+while True:
+    msg = input("you › ").strip()
+    ...
+    await stream_turn(agent, msg, session)   # same session = conversational memory</code></pre>
+  <ul>
+    <li><b><code>agent_instructions</code></b> is <em>your</em> system prompt. The harness adds its own
+      <code>harness_instructions</code> on top. You can override those too.</li>
+    <li><b>One session across turns</b> carries history, todos and mode, so a follow-up such as
+      "and Brent?" works.</li>
+    <li>Web search is still <b>on</b> here, so the agent can look things up even without skills.</li>
+  </ul>
+<pre><code class="language-bash">make demo-1
+# or one-shot:
+.venv/bin/python demos/01_simple_cli.py "What is the 3-2-1 crack spread?"</code></pre>
+  <div class="callout talk">
+    <div class="title">Try on stage</div>
+    Ask a multi-part question ("Compare WTI and Brent, then explain why the spread matters to a Gulf Coast
+    refiner"). You may see the harness create todos before it answers.
+  </div>
+</section>
+
+<section id="factory">
+  <h2>The agent factory <span class="badge">src/energy-brief-agent/energy_agent.py</span></h2>
+  <p>This is the heart of the repo. Demo 2 and the hosted <code>main.py</code> both call it.</p>
+
+  <h3>Instructions: persona plus grounding rules</h3>
+<pre><span class="file">energy_agent.py</span><code class="language-python">ANALYST_INSTRUCTIONS = f"""\
+You are "Brent", an energy-markets analyst copilot for Forward Deployed Engineers
+working with oil & gas customers. Today is {date.today():%A %d %B %Y}.
+
+- Ground every number in tool or skill output. Never invent prices or headlines.
+- Prefer your skills (load them, then run their scripts) over general knowledge.
+- Write crisp, desk-ready Markdown. Lead with the bottom line.
+- Speak the language of the industry (upstream, midstream, downstream, cracks,
+  spreads, Henry Hub, Permian, LNG feedgas, OPEC+), but stay accessible.
+"""</code></pre>
+  <p>Note what is <em>not</em> here: no brief template, no data source details. Domain procedure lives in
+  <b>skills</b>, which keeps the system prompt short and lets skills evolve independently.</p>
+
+  <h3>Wiring up skills</h3>
+<pre><span class="file">energy_agent.py</span><code class="language-python">def build_skills_provider(skills_dir: Path) -> SkillsProvider:
+    return SkillsProvider(
+        FileSkillsSource(
+            [str(skills_dir)],
+            script_runner=subprocess_script_runner,
+            script_extensions=(".py",),
+            search_depth=2,           # skills sit directly under the root
+        ),
+        # Unattended demo. Revisit these if skills can be authored by untrusted people.
+        disable_load_skill_approval=True,
+        disable_run_skill_script_approval=True,
+        disable_read_skill_resource_approval=True,
+    )</code></pre>
+
+  <h3>The factory and its knobs</h3>
+<pre><span class="file">energy_agent.py</span><code class="language-python">def build_energy_agent(client, *, skills_dir=LOCAL_SKILLS_DIR, hosted=False, **overrides):
+    kwargs = {
+        "name": "energy-brief-agent",
+        "description": "Oil & gas market analyst that writes daily market briefs.",
+        "agent_instructions": ANALYST_INSTRUCTIONS,
+        # Foundry stores conversation state server-side, so don't replay history locally.
+        "history_provider": InMemoryHistoryProvider(load_messages=False),
+        # Skills are the source of truth; web search competes with them.
+        "disable_web_search": True,
+        "max_context_window_tokens": 128_000,
+        "max_output_tokens": 16_000,
+    }
+    if skills_dir is not None:
+        kwargs["skills_provider"] = build_skills_provider(skills_dir)
+    if hosted:
+        # Platform owns history; container filesystem is ephemeral -> stay stateless.
+        kwargs.update(
+            disable_file_memory=True,
+            disable_mode=True,
+            default_options={"store": False},
+        )
+    kwargs.update(overrides)
+    return create_harness_agent(client, **kwargs)</code></pre>
+
+  <table>
+    <tr><th>Setting</th><th>Why</th></tr>
+    <tr><td><code>disable_web_search=True</code></td><td>Keeps data retrieval in the skill scripts so every number is traceable to tool output. It also avoids citation tokens in the saved brief.</td></tr>
+    <tr><td><code>InMemoryHistoryProvider(load_messages=False)</code></td><td>The Foundry Responses API keeps conversation state. Replaying it locally would duplicate messages.</td></tr>
+    <tr><td><code>hosted=True</code> → <code>disable_file_memory</code>, <code>disable_mode</code>, <code>store: False</code></td><td>In a container, a reused process must not leak one request's notes or mode into the next. This is the "cons" list from earlier in practice.</td></tr>
+    <tr><td><code>**overrides</code></td><td>Callers can tweak any harness option, for example Demo 2 passes <code>disable_file_memory=True</code>.</td></tr>
+  </table>
+</section>
+
+<section id="skills">
+  <h2>Skills <span class="badge">skills/&lt;name&gt;/SKILL.md + scripts/</span></h2>
+  <p>A skill is a folder with a <code>SKILL.md</code> (YAML front matter plus Markdown instructions) and optional
+  scripts. Skills use <b>progressive disclosure</b>:</p>
+  <ol class="steps">
+    <li>At startup the model sees only each skill's <code>name</code> and <code>description</code>.</li>
+    <li>When a request matches a description, the model calls <code>load_skill</code> to read the full body.</li>
+    <li>The body tells it which script to run, and the model calls <code>run_skill_script</code> through the script runner.</li>
+  </ol>
+  <p>That keeps the context small until a skill is needed, which is why the <b>description is the routing
+  signal</b> and the most important line in the file.</p>
+
+<pre><span class="file">skills/energy-market-brief/SKILL.md</span><code class="language-markdown">---
+name: energy-market-brief
+description: Produce a concise oil and gas market brief (WTI, Brent, Henry Hub, products, Brent-WTI spread, 3-2-1 crack spread) from live futures prices. Use when asked about energy prices, oil markets, gas markets, or for a market brief / morning note.
+---
+
+# Energy Market Brief
+
+## Steps
+
+1. Run the `scripts/fetch_prices.py` script to get live futures data. Pass one
+   argument with the lookback range: `5d`, `1mo` (default), `3mo`, `6mo` or `1y`.
+2. Use only the numbers returned by the script. Never invent prices. If a contract
+   returns an `error`, say the data was unavailable.
+3. If the `energy-news-digest` skill is available, use it too so you can explain
+   *why* prices moved.
+4. Write the brief in the format below.
+
+## Brief format (Markdown)
+   # Energy Market Brief: &lt;date&gt;
+   **Bottom line:** ...
+   ## Prices  | Contract | Latest | 1-day | Period | Range |
+   ## What moved the market
+   ## Signals to watch
+   ## So what for an energy company</code></pre>
+
+  <p>The second skill, <code>energy-news-digest</code>, runs <code>scripts/fetch_news.py [topic] [max]</code>
+  against public RSS feeds (OilPrice.com, EIA, Google News) and groups headlines into bullish, bearish or
+  neutral themes. Step 3 above shows how <b>skills compose</b>: the brief skill tells the model to pull in the
+  news skill when it is available.</p>
+
+  <h4>The script side: deterministic data, JSON out</h4>
+<pre><span class="file">skills/energy-market-brief/scripts/fetch_prices.py</span><code class="language-python">CONTRACTS = {
+    "CL=F": "WTI Crude (NYMEX, USD/bbl)",
+    "BZ=F": "Brent Crude (ICE, USD/bbl)",
+    "NG=F": "Henry Hub Natural Gas (NYMEX, USD/MMBtu)",
+    "RB=F": "RBOB Gasoline (NYMEX, USD/gal)",
+    "HO=F": "Heating Oil / ULSD (NYMEX, USD/gal)",
+}
+
+def main() -> None:
+    period = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in VALID_RANGES else "1mo"
+    out = {"range": period, "retrieved_utc": ..., "contracts": {}}
+    for symbol in CONTRACTS:
+        try:
+            out["contracts"][symbol] = fetch(symbol, period)
+        except Exception as exc:          # one bad contract shouldn't sink the run
+            out["contracts"][symbol] = {"name": CONTRACTS[symbol], "error": str(exc)}
+    ...
+    # Classic 3-2-1 crack spread in USD/bbl (42 gal/bbl)
+    out["crack_spread_321"] = round((2 * rb * 42 + ho * 42 - 3 * wti) / 3, 2)
+    print(json.dumps(out, indent=1))</code></pre>
+  <div class="callout">
+    <div class="title">Design split</div>
+    The <b>model</b> does judgment: choosing skills, interpreting moves, writing prose. The <b>script</b>
+    does facts: fetching data and computing spreads. That split is what makes "never invent numbers"
+    enforceable. Scripts use only the standard library, take positional string arguments, print JSON, report
+    per-item errors and finish within the runner's 30-second timeout.
+  </div>
+  <div class="callout warn">
+    <div class="title">Gotcha</div>
+    Front matter values must be <b>unquoted and free of colons</b>, and <code>name</code> must match the folder
+    name, or the Foundry upload in Part B fails validation.
+  </div>
+</section>
+
+<section id="runner">
+  <h2>Script runner <span class="badge">subprocess_script_runner.py</span></h2>
+  <p><code>FileSkillsSource</code> doesn't run scripts itself. It delegates to a <code>script_runner</code>
+  callback you supply. This sample runs each script in a child Python process:</p>
+<pre><span class="file">subprocess_script_runner.py</span><code class="language-python">def subprocess_script_runner(skill: FileSkill, script: FileSkillScript, args=None) -> str:
+    script_path = Path(script.full_path)
+    if not script_path.is_file():
+        return f"Error: Script file not found: {script_path}"
+    cmd = [sys.executable, str(script_path)]        # same interpreter as the agent
+    if isinstance(args, list):
+        for item in args:
+            if not isinstance(item, str):
+                raise TypeError("File-based skill scripts only accept string CLI arguments ...")
+        cmd.extend(args)
+    elif args is not None:
+        raise TypeError("Expected a list of CLI arguments ...")
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30,
+                                cwd=str(script_path.parent))
+        output = result.stdout
+        if result.stderr:
+            output += f"\nStderr:\n{result.stderr}"
+        if result.returncode != 0:
+            output += f"\nScript exited with code {result.returncode}"
+        return output.strip() or "(no output)"
+    except subprocess.TimeoutExpired:
+        return f"Error: Script '{script.name}' timed out after 30 seconds."</code></pre>
+  <ul>
+    <li><b>Process isolation</b>: a script can't mutate the agent's Python state.</li>
+    <li><b>Errors become text</b>, so the model can see a failure and react instead of crashing the turn.</li>
+    <li><b>Not a sandbox</b>: the child inherits the agent's environment and credentials. See <a href="#production">Before production</a>.</li>
+  </ul>
+</section>
+
+<section id="demo2">
+  <h2>Demo 2 · Skill agent that writes an artifact <span class="badge">demos/02_skill_agent.py</span></h2>
+  <p>Now the full agent runs once, uses both skills, and saves a Markdown brief.</p>
+<pre><span class="file">demos/02_skill_agent.py</span><code class="language-python">DEFAULT_PROMPT = (
+    "Produce today's Oil & Gas Market Brief. Use your energy-market-brief skill for live "
+    "prices and your energy-news-digest skill for headlines, and follow the brief format "
+    "defined in the market-brief skill. Return only the final brief in Markdown."
+)
+
+async def main() -> None:
+    extra = " ".join(sys.argv[1:]).strip()
+    prompt = DEFAULT_PROMPT + (f"\n\nAdditional focus: {extra}" if extra else "")
+
+    agent = build_energy_agent(make_client(), disable_file_memory=True)
+    text = await stream_turn(agent, prompt, agent.create_session())
+
+    # Save from the first Markdown heading, and strip citation tokens.
+    match = re.search(r"^#", text, flags=re.MULTILINE)
+    brief = text[match.start():] if match else text
+    brief = re.sub(r"\s*\ue200?cite\ue202?turn\d+\w+\d+\ue201?", "", brief)
+    out = OUTPUT_DIR / f"brief-{datetime.now():%Y%m%d-%H%M}.md"
+    out.write_text(brief.strip() + "\n", encoding="utf-8")</code></pre>
+<pre><code class="language-bash">make demo-2
+make demo-2 FOCUS="Focus on natural gas and LNG"</code></pre>
+  <p>Expected console trace (abridged):</p>
+<pre><code class="language-text">🛢  Energy Brief agent  skills: energy-market-brief, energy-news-digest
+
+  ⚙ load_skill(energy-market-brief)
+  ⚙ load_skill(energy-news-digest)
+  ⚙ run_skill_script(energy-market-brief/fetch_prices.py)
+  ⚙ run_skill_script(energy-news-digest/fetch_news.py)
+# Energy Market Brief: ...
+**Bottom line:** ...
+
+📄 Brief written to output/brief-20261008-1748.md</code></pre>
+  <div class="callout talk">
+    <div class="title">Teaching point</div>
+    Nothing in Demo 2 names a URL, a ticker or a template. The agent discovered all of that from the skills.
+    To change the brief format, edit <code>SKILL.md</code>, not Python.
+  </div>
+</section>
+
+<!-- ============================================================ PART B -->
+<section id="provision">
+  <h2>Part B · Sharing skills in Foundry <span class="badge">provision_skills.py</span></h2>
+  <p>Locally, skills are read from disk. For the hosted agent we publish them to the Foundry project's
+  <b>skills store</b>, which is versioned and shared by every agent in the project. Updating a skill no longer
+  requires rebuilding the container.</p>
+<pre><span class="file">provision_skills.py</span><code class="language-python">def _zip_skill_md(skill_md: Path) -> bytes:
+    """ZIP the whole skill folder (SKILL.md at the root plus scripts/)."""
+    ...
+
+async def main() -> None:
+    async with (
+        AzureCliCredential() as credential,
+        AIProjectClient(endpoint=endpoint, credential=credential, allow_preview=True) as project,
+    ):
+        for skill_md in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+            name = skill_md.parent.name
+            await _delete_skill_if_exists(project, name)      # versions are immutable: replace
+            body = CreateSkillVersionFromFilesBody(
+                files=[(f"{name}.zip", _zip_skill_md(skill_md), "application/zip")], default=True
+            )
+            imported = await project.beta.skills.create_from_files(name, body)
+
+        # Verify by listing rather than trusting the upload response.
+        listed = {s.name: s async for s in project.beta.skills.list()}</code></pre>
+<pre><code class="language-bash">make skills        # upload or replace every skill
+make skills-list   # show what the project has</code></pre>
+  <div class="callout warn">
+    <div class="title">Order matters</div>
+    Upload skills <b>before</b> deploying. The hosted agent fetches them by name when its container starts.
+  </div>
+</section>
+
+<section id="mainpy">
+  <h2>main.py: the hosted entry point <span class="badge">src/energy-brief-agent/main.py</span></h2>
+  <p>Same factory, different wrapper. <code>main.py</code> does four things at startup.</p>
+
+  <h3>1. Pick credentials for the environment</h3>
+<pre><span class="file">main.py</span><code class="language-python">IS_HOSTED: Final = AgentConfig.from_env().is_hosted
+
+def _sync_credential():
+    if IS_HOSTED:
+        return ManagedIdentityCredential(client_id=os.environ.get("FOUNDRY_AGENT_INSTANCE_CLIENT_ID"))
+    return AzureCliCredential()</code></pre>
+  <p>In Foundry the platform injects a per-agent managed identity. On your laptop (<code>make run-local</code>)
+  it falls back to the Azure CLI. There is a matching async version for the async skills download.</p>
+
+  <h3>2. Download skills from Foundry, with a fallback</h3>
+<pre><span class="file">main.py</span><code class="language-python">DOWNLOADED_SKILLS_DIR = Path(tempfile.gettempdir()) / "downloaded_skills"   # app dir is read-only
+SKILL_BOOTSTRAP_TIMEOUT_SECONDS = 45.0
+
+async def _resolve_skills_dir(endpoint: str) -> Path:
+    skill_names = [n.strip() for n in _resolved_env("SKILL_NAMES").split(",") if n.strip()]
+    if not skill_names:
+        return LOCAL_SKILLS_DIR
+    try:
+        await asyncio.wait_for(
+            _bootstrap_skills(endpoint, skill_names, DOWNLOADED_SKILLS_DIR),
+            timeout=SKILL_BOOTSTRAP_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        logger.exception("Foundry skill download failed; falling back to baked-in skills.")
+        return LOCAL_SKILLS_DIR
+    ...
+    return DOWNLOADED_SKILLS_DIR</code></pre>
+<pre><span class="file">main.py</span><code class="language-python">async def _bootstrap_skills(endpoint, skill_names, target_dir):
+    ...
+    for name in skill_names:
+        stream = await project.beta.skills.download(name, read_timeout=15, retry_total=0)
+        zip_bytes = b"".join([chunk async for chunk in stream])
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+            _safe_extract_zip(zf, skill_dir)            # zip-slip guard
+        if not (skill_dir / "SKILL.md").is_file():
+            raise RuntimeError(...)
+        logger.info("Skill '%s' ready from Foundry: %s", name, files)</code></pre>
+  <ul>
+    <li><b>Bounded startup</b>: a 45-second timeout keeps a slow preview API from hanging the container.</li>
+    <li><b>Graceful degradation</b>: if download fails, the skills baked into the image are used, so the agent stays healthy.</li>
+    <li><b>Defensive extraction</b>: archives are external input, so paths escaping the target folder are rejected.</li>
+    <li><b>Placeholder-safe env</b>: an unresolved <code>${SKILL_NAMES}</code> is treated as empty instead of crashing.</li>
+  </ul>
+
+  <h3>3. Build the same agent, 4. Serve it</h3>
+<pre><span class="file">main.py</span><code class="language-python">async def main() -> None:
+    project_endpoint = os.environ["FOUNDRY_PROJECT_ENDPOINT"]
+    skills_dir = await _resolve_skills_dir(project_endpoint)
+
+    client = FoundryChatClient(
+        project_endpoint=project_endpoint,
+        model=os.environ.get("AZURE_AI_MODEL_DEPLOYMENT_NAME") or "gpt-5.4-mini",
+        credential=_sync_credential(),
+    )
+    agent = build_energy_agent(client, skills_dir=skills_dir, hosted=True)
+    server = ResponsesHostServer(agent)       # Responses protocol on :8088
+    await server.run_async()</code></pre>
+  <div class="callout talk">
+    <div class="title">Teaching point</div>
+    Compare this with Demo 2: the only differences are the credential, where skills come from, and
+    <code>hosted=True</code>. <code>ResponsesHostServer</code> accepts the harness agent directly because it is a
+    plain <code>Agent</code>.
+  </div>
+</section>
+
+<section id="packaging">
+  <h2>azure.yaml, Dockerfile and RBAC</h2>
+  <h3>azure.yaml: two services</h3>
+<pre><span class="file">azure.yaml</span><code class="language-yaml">services:
+  ai-project:
+    host: azure.ai.project
+    deployments:
+      - name: gpt-5.4-mini
+        model: { format: OpenAI, name: gpt-5.4-mini, version: '2026-03-17' }
+        sku: { name: GlobalStandard, capacity: 50 }
+  energy-brief-agent:
+    host: azure.ai.agent
+    kind: hosted
+    project: src/energy-brief-agent
+    codeConfiguration:
+      runtime: python_3_13
+      entryPoint: main.py
+    uses: [ai-project]
+    protocols:
+      - protocol: responses
+        version: 2.0.0
+    env:
+      AZURE_AI_MODEL_DEPLOYMENT_NAME: ${AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-5.4-mini}
+      SKILL_NAMES: ${SKILL_NAMES=energy-market-brief,energy-news-digest}
+    container:
+      resources: { cpu: '1', memory: 2Gi }
+infra:
+  provider: microsoft.foundry</code></pre>
+  <p><code>ai-project</code> provisions the Foundry project and model. <code>energy-brief-agent</code> is the
+  hosted agent. <code>SKILL_NAMES</code> is the contract between the skills store and <code>main.py</code>.</p>
+
+  <h3>Dockerfile</h3>
+  <p>A slim Python image that installs <code>requirements.txt</code>, exposes 8088 and precompiles bytecode
+  (stdlib, dependencies and app) so cold starts are faster. Entry point: <code>python main.py</code>.</p>
+
+  <h3>RBAC</h3>
+  <p>The hosted agent's managed identity needs the <b>Foundry User</b> role on the Foundry account to download
+  skills. <code>make deploy</code> calls <code>make rbac</code>, which looks up the agent's instance identity with
+  <code>azd ai agent show</code> and assigns the role idempotently.</p>
+  <div class="callout warn">
+    <div class="title">Silent failure mode</div>
+    Without the role, skill download fails and the agent quietly uses its baked-in skills. It still works, which
+    hides the problem. Always check the logs (next section).
+  </div>
+</section>
+
+<section id="deploy">
+  <h2>Deploy, invoke, verify</h2>
+  <h4>Optional: run the hosted server on your laptop first</h4>
+<pre><code class="language-bash">make run-local                                   # terminal 1: server on :8088
+make invoke-local PROMPT="Brief me on Henry Hub"  # terminal 2</code></pre>
+  <h4>Deploy to Foundry</h4>
+<pre><code class="language-bash">make deploy        # azd deploy energy-brief-agent, then make rbac
+make show          # status, version, identity
+make invoke        # writes output/hosted-brief-*.md
+make invoke PROMPT="Focus on LNG and European gas"
+make logs          # look for: Skill 'energy-market-brief' ready from Foundry
+make playground    # open the agent in the Foundry portal</code></pre>
+  <table>
+    <tr><th>Log line</th><th>Meaning</th></tr>
+    <tr><td><code>Foundry skills visible to this agent: [...]</code></td><td>Identity and endpoint work</td></tr>
+    <tr><td><code>Skill '...' ready from Foundry: [...]</code></td><td>Skills came from the store ✔</td></tr>
+    <tr><td><code>falling back to baked-in skills</code></td><td>Check RBAC and <code>SKILL_NAMES</code></td></tr>
+    <tr><td><code>ModuleNotFoundError: agents</code>, "Responses resilience DISABLED"</td><td>Harmless preview noise</td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ WRAP-UP -->
+<section id="runofshow">
+  <h2>Demo run-of-show</h2>
+  <table>
+    <tr><th>#</th><th>Show</th><th>Command</th><th>Say</th></tr>
+    <tr><td>1</td><td>Provision</td><td><code>make infra</code></td><td>azd creates the Foundry project and model from <code>azure.yaml</code>.</td></tr>
+    <tr><td>2</td><td>Simple CLI agent</td><td><code>make demo-1</code></td><td>15 lines gets you planning, compaction and memory.</td></tr>
+    <tr><td>3</td><td>Skill agent</td><td><code>make demo-2 FOCUS="LNG"</code></td><td>Watch the ⚙ lines: skills load on demand, and scripts provide the facts.</td></tr>
+    <tr><td>4</td><td>Share skills</td><td><code>make skills</code>, <code>make skills-list</code></td><td>Skills are now versioned project assets, not files on a laptop.</td></tr>
+    <tr><td>5</td><td>Hosted agent</td><td><code>make deploy</code>, <code>make invoke</code></td><td>Same factory, now behind the Responses protocol with managed identity.</td></tr>
+    <tr><td>6</td><td>Prove it</td><td><code>make logs</code></td><td>"ready from Foundry" shows the skills came from the store.</td></tr>
+  </table>
+  <p><code>make all</code> runs setup, infra, skills, deploy and invoke in one go.</p>
+</section>
+
+<section id="production">
+  <h2>Before production</h2>
+  <p>This repo is a demo. These are deliberate shortcuts to call out:</p>
+  <ul>
+    <li><b>Approvals are off.</b> Re-enable skill load, script and resource approvals, and harness auto-approval rules, for anything with side effects.</li>
+    <li><b>The script runner is not a sandbox.</b> Consider an allow-list, resource limits, a separate identity and scrubbing secrets from output.</li>
+    <li><b>Skill supply chain.</b> Anyone who can publish to the project's skills store changes the agent's behavior at its next start. Restrict write access and consider pinning versions.</li>
+    <li><b>No evaluations, tracing or tests.</b> Add evaluation datasets, telemetry, script unit tests and a <code>make demo-2</code> smoke test in CI.</li>
+    <li><b>Public, delayed data.</b> Replace with licensed or internal sources, authenticated through managed identity or Key Vault. The output is not investment advice.</li>
+  </ul>
+</section>
+
+<section id="exercises">
+  <h2>Exercises</h2>
+  <ol class="steps">
+    <li><b>Trim the harness.</b> In Demo 1, add <code>disable_todo=True, disable_mode=True, disable_web_search=True</code>. What changes in answers and latency? When would you go further and use <code>Agent</code> directly?</li>
+    <li><b>Re-enable web search</b> in <code>build_energy_agent</code> via an override and compare a brief with and without it. Which numbers can you still trace to tool output?</li>
+    <li><b>Write a third skill</b>, for example <code>rig-count</code> or <code>eia-storage</code>: a <code>SKILL.md</code> with a "Use when ..." description and a stdlib script that prints JSON. Run <code>make demo-2</code> and watch whether the model picks it up.</li>
+    <li><b>Change the brief format</b> only by editing <code>energy-market-brief/SKILL.md</code>, then run <code>make skills</code> and <code>make invoke</code>. No redeploy needed.</li>
+    <li><b>Break RBAC on purpose</b> (or set a bad <code>SKILL_NAMES</code>), redeploy, and find the fallback message in <code>make logs</code>.</li>
+    <li><b>Adapt the repo</b> to your own domain by following <code>docs/BUILD_YOUR_OWN_AGENT.md</code>.</li>
+  </ol>
+
+  <details>
+    <summary>Further reading</summary>
+    <ul>
+      <li><a href="https://learn.microsoft.com/en-us/agent-framework/get-started/harness?pivots=programming-language-python">Agent Framework: Get started with the Harness (Python)</a></li>
+      <li><a href="https://learn.microsoft.com/en-us/agent-framework/concepts/harness">Agent Framework: Agent Harness concepts</a></li>
+      <li><a href="https://github.com/microsoft/agent-framework/tree/main/python/samples/02-agents/harness">Python harness samples</a></li>
+      <li>In this repo: <code>README.md</code>, <code>AGENTS.md</code>, <code>docs/BUILD_YOUR_OWN_AGENT.md</code></li>
+    </ul>
+  </details>
+</section>
+
+</main>
+</div>
+
+<script>
+(() => {
+  // Minimal, dependency-free highlighter. Works on textContent so escaped HTML stays safe.
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const PY_KW = "and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|None|nonlocal|not|or|pass|raise|return|True|False|try|while|with|yield";
+  const rules = {
+    python: new RegExp(
+      '(?<com>#[^\\n]*)|(?<str>[rbfRBF]{0,2}"""[\\s\\S]*?"""|[rbfRBF]{0,2}"(?:\\\\.|[^"\\\\\\n])*"|[rbfRBF]{0,2}\'(?:\\\\.|[^\'\\\\\\n])*\')' +
+      '|(?<dec>@[\\w.]+)|(?<kw>\\b(?:' + PY_KW + ')\\b)|(?<fn>\\b[A-Za-z_]\\w*(?=\\())|(?<num>\\b\\d[\\d_]*(?:\\.\\d+)?\\b)', 'g'),
+    bash: /(?<com>#[^\n]*)|(?<str>"(?:\\.|[^"\\])*"|'[^']*')|(?<kw>\bmake\b|\bazd\b|\baz\b)/g,
+    yaml: /(?<com>#[^\n]*)|(?<str>'[^']*'|"[^"]*"|\$\{[^}]*\})|(?<kw>^\s*[\w.-]+(?=:))/gm,
+    markdown: /(?<kw>^#{1,6} [^\n]*)|(?<com>^---$)|(?<str>`[^`\n]+`)|(?<dec>^[\w-]+(?=: ))/gm,
+  };
+  document.querySelectorAll("pre code[class*='language-']").forEach(el => {
+    const lang = (el.className.match(/language-(\w+)/) || [])[1];
+    const re = rules[lang];
+    if (!re) return;
+    const src = el.textContent;
+    let out = "", last = 0;
+    for (const m of src.matchAll(re)) {
+      const kind = Object.keys(m.groups).find(k => m.groups[k] !== undefined);
+      if (!kind || !m[0]) continue;
+      out += esc(src.slice(last, m.index)) + `<span class="tok-${kind}">${esc(m[0])}</span>`;
+      last = m.index + m[0].length;
+    }
+    el.innerHTML = out + esc(src.slice(last));
+  });
+
+  document.querySelectorAll("pre").forEach(pre => {
+    const code = pre.querySelector("code");
+    if (!code) return;
+    const btn = document.createElement("button");
+    btn.className = "copy"; btn.type = "button"; btn.textContent = "Copy";
+    btn.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(code.textContent); btn.textContent = "Copied"; }
+      catch { btn.textContent = "Copy failed"; }
+      setTimeout(() => (btn.textContent = "Copy"), 1200);
+    });
+    pre.appendChild(btn);
+  });
+
+  // Scroll-spy for the sidebar.
+  const links = new Map([...document.querySelectorAll("nav a[href^='#']")].map(a => [a.getAttribute("href").slice(1), a]));
+  const spy = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      links.forEach(a => a.classList.remove("active"));
+      links.get(e.target.id)?.classList.add("active");
+    });
+  }, { rootMargin: "-10% 0px -80% 0px" });
+  document.querySelectorAll("main section[id]").forEach(s => spy.observe(s));
+})();
+</script>
+</body>
+</html>
