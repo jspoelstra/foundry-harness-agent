@@ -73,6 +73,7 @@ make invoke    # get a brief from the hosted agent
 | `src/energy-brief-agent/main.py`                 | Hosted agent entry point; downloads skills from Foundry   |
 | `src/energy-brief-agent/provision_skills.py`     | Uploads or lists skills in the Foundry project            |
 | `src/energy-brief-agent/skills/`                 | The two skills (`SKILL.md` and scripts)                   |
+| `docs/BUILD_YOUR_OWN_AGENT.md`                   | Guide for coding agents adapting this repo to a new agent |
 
 ## Caveats
 
