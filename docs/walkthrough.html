@@ -604,10 +604,12 @@ def main() -> None:
         return f"Error: Script file not found: {script_path}"
     cmd = [sys.executable, str(script_path)]        # same interpreter as the agent
     if isinstance(args, list):
-        for item in args:
-            if not isinstance(item, str):
-                raise TypeError("File-based skill scripts only accept string CLI arguments ...")
-        cmd.extend(args)
+        for item in args:                           # models may send 5 instead of "5"
+            if isinstance(item, (int, float)) and not isinstance(item, bool):
+                item = str(item)
+            elif not isinstance(item, str):
+                raise TypeError("File-based skill scripts only accept string or numeric CLI arguments ...")
+            cmd.append(item)
     elif args is not None:
         raise TypeError("Expected a list of CLI arguments ...")
     try:

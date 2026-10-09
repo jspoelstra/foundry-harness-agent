@@ -7,7 +7,8 @@ description: Gather and summarize the latest oil, gas and LNG news headlines fro
 
 ## Steps
 
-1. Run the `scripts/fetch_news.py` script. Arguments are positional:
+1. Run the `scripts/fetch_news.py` script. Arguments are positional and must be
+   passed as strings, for example `["OPEC+", "5"]`:
    - First argument (optional): a search topic for Google News, for example
      `OPEC+`, `LNG Europe` or `Permian`. The default topic is `oil gas OPEC LNG`.
    - Second argument (optional): the maximum number of headlines per feed. The

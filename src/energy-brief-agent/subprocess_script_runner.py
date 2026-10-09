@@ -29,15 +29,15 @@ def subprocess_script_runner(
     Args:
         skill: The file-based skill that owns the script.
         script: The file-based script to run.
-        args: Optional arguments.  A ``list[str]`` is forwarded as
-            positional CLI arguments.  Passing a ``dict`` or any other
-            type raises :class:`TypeError` — file-based scripts expect
-            positional arguments as a JSON array of strings.
+        args: Optional arguments.  A list is forwarded as positional CLI
+            arguments; numeric elements are converted to strings.  Passing
+            a ``dict`` or any other type raises :class:`TypeError` —
+            file-based scripts expect positional arguments as a JSON array.
     Returns:
         The combined stdout/stderr output, or an error message.
     Raises:
-        TypeError: If ``args`` is not a ``list[str]`` or ``None``, or if
-            any list element is not a string.
+        TypeError: If ``args`` is not a list or ``None``, or if any list
+            element is not a string or number.
     """
     script_path = Path(script.full_path)
     if not script_path.is_file():
@@ -46,17 +46,21 @@ def subprocess_script_runner(
     # Python state, and use the same interpreter/environment as the agent.
     cmd = [sys.executable, str(script_path)]
     if isinstance(args, list):
-        # FileSkill scripts receive positional strings, not arbitrary Python
-        # objects; reject bad shapes here instead of letting them fail obscurely
-        # inside a script's argument handling.
+        # FileSkill scripts receive positional strings. Models often emit numbers
+        # as JSON numbers (e.g. ["OPEC+", 5]), so coerce int/float to str; reject
+        # other shapes instead of letting them fail obscurely inside a script.
+        cli_args: list[str] = []
         for item in args:
-            if not isinstance(item, str):
+            if isinstance(item, str):
+                cli_args.append(item)
+            elif isinstance(item, (int, float)) and not isinstance(item, bool):
+                cli_args.append(str(item))
+            else:
                 raise TypeError(
-                    f"File-based skill scripts only accept string CLI arguments "
-                    f"but received a {type(item).__name__}. "
-                    f"All array elements must be strings."
+                    f"File-based skill scripts only accept string or numeric CLI "
+                    f"arguments but received a {type(item).__name__}."
                 )
-        cmd.extend(args)
+        cmd.extend(cli_args)
     elif args is not None:
         raise TypeError(
             f"Expected a list of CLI arguments but received {type(args).__name__}. "
